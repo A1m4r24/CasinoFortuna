@@ -1,0 +1,647 @@
+from flask import Flask, render_template_string
+app = Flask(__name__)
+
+TEMPLATE = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gran Casino Fortuna</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto&display=swap');
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #2e004f, #1a0026);
+    color: #ddd;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header, footer {
+    text-align: center;
+    color: #b564ff;
+    font-family: 'Orbitron', monospace;
+    font-size: 1.6em;
+    margin: 8px 0;
+    user-select: none;
+  }
+  header span, footer span {
+    margin: 0 8px;
+  }
+  /* casino icons */
+  header span:nth-child(1)::after {
+    content: "🎲";
+    margin-left: 6px;
+  }
+  header span:nth-child(2)::after {
+    content: "♠";
+    margin-left: 6px;
+  }
+  header span:nth-child(3)::after {
+    content: "♦";
+    margin-left: 6px;
+  }
+  footer span:nth-child(1)::before {
+    content: "♣";
+    margin-right: 6px;
+  }
+  footer span:nth-child(2)::before {
+    content: "♥";
+    margin-right: 6px;
+  }
+  footer span:nth-child(3)::before {
+    content: "💰";
+    margin-right: 6px;
+  }
+
+  h1 {
+    font-weight: 900;
+    font-size: 2.4em;
+    margin-bottom: 15px;
+    color: #d9b3ff;
+    text-shadow: 0 0 8px #9a63ffaa;
+  }
+  #balance {
+    font-size: 1.5em;
+    text-align: center;
+    margin-bottom: 30px;
+    color: #b3a1ff;
+    text-shadow: 0 0 6px #7a4de0aa;
+  }
+  .casino-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .game {
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 15px;
+    padding: 20px;
+    flex: 1 1 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 5px 20px #6b3aff55;
+    transition: background-color 0.3s ease;
+  }
+  .game:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+  h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #c2a1ff;
+    text-shadow: 0 0 6px #8a64ffcc;
+  }
+  label {
+    margin-right: 5px;
+    color: #b9a8ff;
+  }
+  input[type=number], select {
+    width: 70px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    border: none;
+    font-size: 1em;
+    margin-right: 8px;
+    text-align: center;
+    background-color: #4a317a;
+    color: #eee;
+    box-shadow: inset 0 0 4px #7b53ffaa;
+  }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  button {
+    background: #8a56ff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    color: #eee;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 5px 12px #8a56ffcc;
+    transition: background-color 0.25s ease;
+    margin-top: 10px;
+  }
+  button:hover:not(:disabled) {
+    background: #6e3eff;
+    box-shadow: 0 7px 20px #773cffcc;
+  }
+  button:disabled {
+    background: #4b3a5d;
+    cursor: not-allowed;
+    color: #888;
+    box-shadow: none;
+  }
+  .result, .reels, #dice-display {
+    margin-top: 20px;
+    font-size: 1.3em;
+    min-height: 60px;
+    text-align: center;
+    color: #d2c0ff;
+    text-shadow: 0 0 6px #7155bbaa;
+    user-select: none;
+  }
+  .reels span {
+    font-size: 2.2em;
+    margin: 0 8px;
+    text-shadow: 0 0 6px #bfa1ffcc;
+  }
+  .cards {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+  }
+  .card {
+    background: #dac7ffcc;
+    color: #2d1855;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 1.4em;
+    box-shadow: 0 3px 8px #634affbb;
+    min-width: 30px;
+    text-align: center;
+    user-select: none;
+  }
+  /* Ruleta */
+  #roulette-container {
+    position: relative;
+    margin-top: 20px;
+  }
+  #roulette {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 14px solid #5a1480;
+    box-shadow: 0 0 30px #9f6dff inset;
+    position: relative;
+    transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  /* Flecha fija arriba */
+  #roulette-arrow {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; 
+    height: 0; 
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-top: 28px solid #b564ff;
+    filter: drop-shadow(0 0 6px #b564ffcc);
+    z-index: 20;
+    user-select: none;
+  }
+  /* Ruleta sectores */
+  .sector {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0% 0%;
+    clip-path: polygon(100% 0, 0 0, 0 100%);
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.4);
+  }
+  .sector.rojo {
+    background: #e74c3c;
+    transform: rotate(180deg);
+  }
+  .sector.negro {
+    background: #2c3e50;
+    transform: rotate(90deg);
+  }
+  .sector.verde {
+    background: #27ae60;
+    transform: rotate(0deg);
+  }
+  .sector.dorado {
+    background: #f1c40f;
+    transform: rotate(270deg);
+  }
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .casino-container {
+      flex-direction: column;
+      align-items: center;
+    }
+    .game {
+      width: 90vw;
+      max-width: 400px;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span>Gran</span><span>Casino</span><span>Fortuna</span>
+</header>
+
+<h1>Gran Casino Fortuna</h1>
+<div id="balance">Saldo: 1000 €</div>
+<div class="casino-container">
+
+  <!-- Ruleta -->
+  <div class="game" id="roulette-game">
+    <h2>Ruleta</h2>
+    <label for="roulette-color">Apuesta color:</label>
+    <select id="roulette-color" aria-label="Selecciona color de apuesta">
+      <option value="Rojo">Rojo</option>
+      <option value="Negro">Negro</option>
+      <option value="Verde">Verde</option>
+      <option value="Dorado">Dorado</option>
+    </select>
+    <label for="roulette-bet">€</label>
+    <input type="number" id="roulette-bet" min="1" value="10" />
+    <button id="roulette-btn">Girar</button>
+    <div id="roulette-container">
+      <div id="roulette-arrow" aria-hidden="true"></div>
+      <div id="roulette" role="img" aria-label="Ruleta de colores">
+        <div class="sector rojo sector0"></div>
+        <div class="sector negro sector1"></div>
+        <div class="sector verde sector2"></div>
+        <div class="sector dorado sector3"></div>
+      </div>
+    </div>
+    <div class="result" id="roulette-result" aria-live="polite"></div>
+  </div>
+
+  <!-- Tragaperras -->
+  <div class="game" id="slot-game">
+    <h2>Tragaperras</h2>
+    <label for="slot-bet">Apuesta €:</label>
+    <input type="number" id="slot-bet" min="1" value="10" />
+    <button id="slot-btn">Jugar</button>
+    <div class="reels" id="slot-reels" aria-live="polite"></div>
+    <div class="result" id="slot-result" aria-live="polite"></div>
+  </div>
+
+  <!-- Blackjack -->
+  <div class="game" id="blackjack-game">
+    <h2>Blackjack</h2>
+    <label for="blackjack-bet">Apuesta €:</label>
+    <input type="number" id="blackjack-bet" min="1" value="10" />
+    <button id="blackjack-start-btn">Empezar</button>
+    <div class="cards" id="blackjack-cards-player" aria-label="Tus cartas"></div>
+    <div class="cards" id="blackjack-cards-dealer" aria-label="Cartas del dealer"></div>
+    <button id="hit-btn" disabled>Pedir</button>
+    <button id="stand-btn" disabled>Plantarse</button>
+    <div class="result" id="blackjack-result" aria-live="polite"></div>
+  </div>
+
+  <!-- Dados -->
+  <div class="game" id="dice-game">
+    <h2>Dados</h2>
+    <label for="dice-bet">Apuesta €:</label>
+    <input type="number" id="dice-bet" min="1" value="10" />
+    <label for="dice-number">Número (1-6):</label>
+    <input type="number" id="dice-number" min="1" max="6" value="3" />
+    <button id="dice-btn">Tirar Dados</button>
+    <div id="dice-display" aria-live="polite"></div>
+    <div class="result" id="dice-result" aria-live="polite"></div>
+  </div>
+</div>
+
+<footer>
+  <span>Diviértete</span><span>Con</span><span>Responsabilidad</span>
+</footer>
+
+<script>
+  let balance = 1000;
+  const balanceEl = document.getElementById('balance');
+
+  function updateBalance() {
+    balanceEl.textContent = `Saldo: ${balance} €`;
+  }
+
+  function validateBet(bet) {
+    if (isNaN(bet) || bet < 1 || bet > balance) return false;
+    return true;
+  }
+
+  // ---------- Ruleta ----------
+  const rouletteBtn = document.getElementById('roulette-btn');
+  const rouletteBetInput = document.getElementById('roulette-bet');
+  const rouletteColorSelect = document.getElementById('roulette-color');
+  const rouletteResult = document.getElementById('roulette-result');
+  const rouletteWheel = document.getElementById('roulette');
+
+  const rouletteColors = ['Rojo', 'Negro', 'Verde', 'Dorado'];
+  // Map colors to degrees so color sector aligns under arrow (arrow points down, so 270deg offset)
+  const colorDegrees = {
+    'Rojo': 45,
+    'Negro': 135,
+    'Verde': 225,
+    'Dorado': 315
+  };
+
+  rouletteBtn.addEventListener('click', () => {
+    let bet = parseInt(rouletteBetInput.value);
+    let chosenColor = rouletteColorSelect.value;
+    if (!validateBet(bet)) {
+      rouletteResult.textContent = "Apuesta inválida o saldo insuficiente.";
+      return;
+    }
+
+    balance -= bet;
+    updateBalance();
+    rouletteResult.textContent = "Girando ruleta...";
+
+    // Número de vueltas (3 a 5)
+    let spins = Math.floor(Math.random() * 3) + 3;
+    let resultIndex = Math.floor(Math.random() * rouletteColors.length);
+    let resultColor = rouletteColors[resultIndex];
+
+    // rotación total = vueltas * 360 + rotación color
+    let finalRotation = 360 * spins + colorDegrees[resultColor];
+
+    // Animar
+    rouletteWheel.style.transition = 'transform 4s ease-out';
+    rouletteWheel.style.transform = `rotate(${finalRotation}deg)`;
+
+    setTimeout(() => {
+      if (chosenColor === resultColor) {
+        let gain = bet * 2;
+        balance += gain;
+        rouletteResult.textContent = `¡Ganaste! Salió ${resultColor}. Ganaste ${gain} €.`;
+      } else {
+        rouletteResult.textContent = `Perdiste. Salió ${resultColor}.`;
+      }
+      updateBalance();
+
+      // Fijar ruleta en posición resultado para siguiente giro suave
+      rouletteWheel.style.transition = 'none';
+      rouletteWheel.style.transform = `rotate(${colorDegrees[resultColor]}deg)`;
+    }, 4000);
+  });
+
+  // ---------- Tragaperras ----------
+  const slotBtn = document.getElementById('slot-btn');
+  const slotBetInput = document.getElementById('slot-bet');
+  const slotReels = document.getElementById('slot-reels');
+  const slotResult = document.getElementById('slot-result');
+  const slotSymbols = ['🍒', '🍋', '🍉', '⭐', '7️⃣', '💎'];
+
+  slotBtn.addEventListener('click', () => {
+    let bet = parseInt(slotBetInput.value);
+    if (!validateBet(bet)) {
+      slotResult.textContent = "Apuesta inválida o saldo insuficiente.";
+      return;
+    }
+    balance -= bet;
+    updateBalance();
+    slotResult.textContent = "Jugando...";
+    slotReels.textContent = '';
+
+    let spins = 0;
+    const maxSpins = 15;
+
+    const interval = setInterval(() => {
+      spins++;
+      let reel1 = slotSymbols[Math.floor(Math.random() * slotSymbols.length)];
+      let reel2 = slotSymbols[Math.floor(Math.random() * slotSymbols.length)];
+      let reel3 = slotSymbols[Math.floor(Math.random() * slotSymbols.length)];
+      slotReels.innerHTML = `<span>${reel1}</span><span>${reel2}</span><span>${reel3}</span>`;
+      if (spins >= maxSpins) {
+        clearInterval(interval);
+        if (reel1 === reel2 && reel2 === reel3) {
+          let gain = bet * 10;
+          balance += gain;
+          slotResult.textContent = `¡Jackpot! Tres ${reel1}. Ganaste ${gain} €.`;
+        } else {
+          slotResult.textContent = "Perdiste.";
+        }
+        updateBalance();
+      }
+    }, 150);
+  });
+
+  // ---------- Blackjack ----------
+  const blackjackBetInput = document.getElementById('blackjack-bet');
+  const blackjackStartBtn = document.getElementById('blackjack-start-btn');
+  const hitBtn = document.getElementById('hit-btn');
+  const standBtn = document.getElementById('stand-btn');
+  const playerCardsDiv = document.getElementById('blackjack-cards-player');
+  const dealerCardsDiv = document.getElementById('blackjack-cards-dealer');
+  const blackjackResult = document.getElementById('blackjack-result');
+
+  let deck = [];
+  let playerHand = [];
+  let dealerHand = [];
+  let blackjackBet = 0;
+  let gameInProgress = false;
+
+  function createDeck() {
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    let d = [];
+    for (let suit of suits) {
+      for (let rank of ranks) {
+        d.push({suit, rank});
+      }
+    }
+    return d;
+  }
+
+  function shuffleDeck(d) {
+    for (let i = d.length -1; i > 0; i--) {
+      let j = Math.floor(Math.random() * (i+1));
+      [d[i], d[j]] = [d[j], d[i]];
+    }
+  }
+
+  function cardValue(card) {
+    if (card.rank === 'A') return 11;
+    if (['K', 'Q', 'J'].includes(card.rank)) return 10;
+    return parseInt(card.rank);
+  }
+
+  function calculateHandValue(hand) {
+    let value = 0;
+    let aces = 0;
+    for (let card of hand) {
+      value += cardValue(card);
+      if (card.rank === 'A') aces++;
+    }
+    while (value > 21 && aces > 0) {
+      value -= 10;
+      aces--;
+    }
+    return value;
+  }
+
+  function renderCards(div, hand) {
+    div.innerHTML = '';
+    for (let card of hand) {
+      let cardDiv = document.createElement('div');
+      cardDiv.classList.add('card');
+      cardDiv.textContent = `${card.rank}${card.suit}`;
+      div.appendChild(cardDiv);
+    }
+  }
+
+  function resetBlackjack() {
+    deck = createDeck();
+    shuffleDeck(deck);
+    playerHand = [];
+    dealerHand = [];
+    blackjackResult.textContent = '';
+    renderCards(playerCardsDiv, []);
+    renderCards(dealerCardsDiv, []);
+    hitBtn.disabled = true;
+    standBtn.disabled = true;
+    gameInProgress = false;
+  }
+
+  blackjackStartBtn.addEventListener('click', () => {
+    let bet = parseInt(blackjackBetInput.value);
+    if (!validateBet(bet)) {
+      blackjackResult.textContent = "Apuesta inválida o saldo insuficiente.";
+      return;
+    }
+    blackjackBet = bet;
+    balance -= bet;
+    updateBalance();
+
+    resetBlackjack();
+
+    // Reparto inicial
+    playerHand.push(deck.pop());
+    dealerHand.push(deck.pop());
+    playerHand.push(deck.pop());
+    dealerHand.push(deck.pop());
+
+    renderCards(playerCardsDiv, playerHand);
+    // Mostrar solo una carta del dealer inicialmente
+    dealerCardsDiv.innerHTML = '';
+    let firstCard = document.createElement('div');
+    firstCard.classList.add('card');
+    firstCard.textContent = `${dealerHand[0].rank}${dealerHand[0].suit}`;
+    dealerCardsDiv.appendChild(firstCard);
+    let hiddenCard = document.createElement('div');
+    hiddenCard.classList.add('card');
+    hiddenCard.textContent = '🂠';
+    dealerCardsDiv.appendChild(hiddenCard);
+
+    hitBtn.disabled = false;
+    standBtn.disabled = false;
+    gameInProgress = true;
+
+    blackjackResult.textContent = "Tu turno: pedir o plantarte.";
+  });
+
+  hitBtn.addEventListener('click', () => {
+    if (!gameInProgress) return;
+    playerHand.push(deck.pop());
+    renderCards(playerCardsDiv, playerHand);
+
+    let playerValue = calculateHandValue(playerHand);
+    if (playerValue > 21) {
+      blackjackResult.textContent = `Te pasaste con ${playerValue}. Perdiste.`;
+      hitBtn.disabled = true;
+      standBtn.disabled = true;
+      gameInProgress = false;
+    } else if (playerValue === 21) {
+      standBtn.click();
+    } else {
+      blackjackResult.textContent = `Tienes ${playerValue}.`;
+    }
+  });
+
+  standBtn.addEventListener('click', () => {
+    if (!gameInProgress) return;
+    hitBtn.disabled = true;
+    standBtn.disabled = true;
+
+    // Mostrar todas las cartas del dealer
+    renderCards(dealerCardsDiv, dealerHand);
+
+    // Dealer juega
+    let dealerValue = calculateHandValue(dealerHand);
+    let playerValue = calculateHandValue(playerHand);
+
+    while (dealerValue < 17) {
+      dealerHand.push(deck.pop());
+      dealerValue = calculateHandValue(dealerHand);
+      renderCards(dealerCardsDiv, dealerHand);
+    }
+
+    if (dealerValue > 21) {
+      balance += blackjackBet * 2;
+      blackjackResult.textContent = `Dealer se pasó con ${dealerValue}. ¡Ganaste ${blackjackBet * 2} €!`;
+    } else if (dealerValue === playerValue) {
+      balance += blackjackBet;
+      blackjackResult.textContent = `Empate con ${playerValue}. Recuperas apuesta.`;
+    } else if (playerValue > dealerValue) {
+      balance += blackjackBet * 2;
+      blackjackResult.textContent = `Ganaste con ${playerValue} vs ${dealerValue}. Ganaste ${blackjackBet * 2} €.`;
+    } else {
+      blackjackResult.textContent = `Perdiste con ${playerValue} vs ${dealerValue}.`;
+    }
+    updateBalance();
+    gameInProgress = false;
+  });
+
+  // ---------- Dados ----------
+  const diceBtn = document.getElementById('dice-btn');
+  const diceBetInput = document.getElementById('dice-bet');
+  const diceNumberInput = document.getElementById('dice-number');
+  const diceDisplay = document.getElementById('dice-display');
+  const diceResult = document.getElementById('dice-result');
+
+  diceBtn.addEventListener('click', () => {
+    let bet = parseInt(diceBetInput.value);
+    let number = parseInt(diceNumberInput.value);
+    if (!validateBet(bet)) {
+      diceResult.textContent = "Apuesta inválida o saldo insuficiente.";
+      return;
+    }
+    if (isNaN(number) || number < 1 || number > 6) {
+      diceResult.textContent = "Número inválido. Debe ser entre 1 y 6.";
+      return;
+    }
+
+    balance -= bet;
+    updateBalance();
+    diceResult.textContent = "Tirando dados...";
+    diceDisplay.textContent = '';
+
+    // Simular 2 dados
+    setTimeout(() => {
+      let dice1 = Math.floor(Math.random() * 6) + 1;
+      let dice2 = Math.floor(Math.random() * 6) + 1;
+      diceDisplay.textContent = `Dados: ${dice1} y ${dice2}`;
+      if (dice1 === number || dice2 === number) {
+        let gain = bet * 2;
+        balance += gain;
+        diceResult.textContent = `¡Ganaste! Salió ${dice1} y ${dice2}. Ganaste ${gain} €.`;
+      } else {
+        diceResult.textContent = `Perdiste. Salió ${dice1} y ${dice2}.`;
+      }
+      updateBalance();
+    }, 1200);
+  });
+
+  updateBalance();
+</script>
+
+</body>
+</html>
+"""
+
+@app.route("/")
+def home():
+    return render_template_string(TEMPLATE)
+
+if __name__ == "__main__":
+    app.run(debug=True)
